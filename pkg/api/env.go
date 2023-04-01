@@ -14,8 +14,8 @@ import (
 // @Produce json
 // @Router /env [get]
 // @Success 200 {object} api.ArrayResponse
-func (s *Server) envHandler(w http.ResponseWriter, r *http.Request) {
-	_, span := s.tracer.Start(r.Context(), "envHandler")
+func (s *Server) EnvHandler(w http.ResponseWriter, r *http.Request) {
+	_, span := s.tracer.Start(r.Context(), "EnvHandler")
 	defer span.End()
 	s.JSONResponse(w, r, os.Environ())
 }
