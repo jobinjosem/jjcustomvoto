@@ -17,8 +17,8 @@ import (
 // @Produce json
 // @Success 200 {object} api.RuntimeResponse
 // @Router /api/info [get]
-func (s *Server) infoHandler(w http.ResponseWriter, r *http.Request) {
-	_, span := s.tracer.Start(r.Context(), "infoHandler")
+func (s *Server) InfoHandler(w http.ResponseWriter, r *http.Request) {
+	_, span := s.tracer.Start(r.Context(), "InfoHandler")
 	defer span.End()
 
 	data := RuntimeResponse{

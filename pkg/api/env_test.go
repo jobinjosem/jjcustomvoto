@@ -15,7 +15,7 @@ func TestEnvHandler(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	srv := NewMockServer()
-	handler := http.HandlerFunc(srv.infoHandler)
+	handler := http.HandlerFunc(srv.InfoHandler)
 
 	handler.ServeHTTP(rr, req)
 

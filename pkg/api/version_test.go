@@ -16,7 +16,7 @@ func TestVersionHandler(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	srv := NewMockServer()
-	handler := http.HandlerFunc(srv.versionHandler)
+	handler := http.HandlerFunc(srv.VersionHandler)
 
 	handler.ServeHTTP(rr, req)
 

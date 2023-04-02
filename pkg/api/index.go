@@ -13,7 +13,7 @@ import (
 // @Produce html
 // @Router / [get]
 // @Success 200 {string} string "OK"
-func (s *Server) indexHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) IndexHandler(w http.ResponseWriter, r *http.Request) {
 	_, span := s.tracer.Start(r.Context(), "indexHandler")
 	defer span.End()
 

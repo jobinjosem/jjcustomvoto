@@ -43,11 +43,11 @@ definitions:
       token_name:
         type: string
     type: object
-host: localhost:9898
+host: localhost:8080
 info:
   contact:
     name: Source Code
-    url: https://github.com/stefanprodan/podinfo
+    url: https://github.com/jobinjosem/jjcustomvoto
   description: Go microservice template for Kubernetes.
   license:
     name: MIT License

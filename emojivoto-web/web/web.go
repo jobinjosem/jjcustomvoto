@@ -4,15 +4,24 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
+	// "html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 
-	pb "github.com/buoyantio/emojivoto/emojivoto-web/gen/proto"
+	"github.com/gorilla/mux"
+	pb "github.com/jobinjosem/jjcustomvoto/emojivoto-web/gen/proto"
+	"github.com/jobinjosem/jjcustomvoto/pkg/api"
+	_ "github.com/jobinjosem/jjcustomvoto/pkg/api/docs"
+	"github.com/swaggo/swag"
 	"go.opencensus.io/plugin/ochttp"
+	"go.uber.org/zap"
+	// "github.com/jobinjosem/jjcustomvoto/pkg/grpc"
+	// "github.com/jobinjosem/jjcustomvoto/pkg/signals"
+	// "github.com/jobinjosem/jjcustomvoto/pkg/version"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type Server struct {
@@ -21,6 +30,8 @@ type Server struct {
 	indexBundle         string
 	webpackDevServer    string
 	messageOfTheDay     string
+	router              *mux.Router
+	logger              *zap.Logger
 }
 
 func (app *Server) listEmojiHandler(w http.ResponseWriter, r *http.Request) {
@@ -314,41 +325,41 @@ func (app *Server) voteEmojiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *Server) indexHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
+// func (app *Server) indexHandler(w http.ResponseWriter, r *http.Request) {
+// 	w.Header().Set("Content-Type", "text/html")
 
-	indexTemplate := fmt.Sprintf(`
-	<!DOCTYPE html>
-	<html>
-		<head>
-			<meta charset="UTF-8">
-			<title>Emoji Vote</title>
-			<link rel="icon" href="/img/favicon.ico">
-			<!-- Global site tag (gtag.js) - Google Analytics -->
-			<script async src="https://www.googletagmanager.com/gtag/js?id=UA-60040560-4"></script>
-			<script>
-			  window.dataLayer = window.dataLayer || [];
-			  function gtag(){dataLayer.push(arguments);}
-			  gtag('js', new Date());
-			  gtag('config', 'UA-60040560-4');
-			</script>
-		</head>
-		<body>
-			<div id="motd" class="motd">%s</div>
-			<div id="main" class="main"></div>
-		</body>
-		{{ if ne . ""}}
-			<script type="text/javascript" src="{{ . }}/dist/index_bundle.js" async></script>
-		{{else}}
-			<script type="text/javascript" src="/js" async></script>
-		{{end}}
-	</html>`, app.messageOfTheDay)
-	t, err := template.New("indexTemplate").Parse(indexTemplate)
-	if err != nil {
-		panic(err)
-	}
-	t.Execute(w, app.webpackDevServer)
-}
+// 	indexTemplate := fmt.Sprintf(`
+// 	<!DOCTYPE html>
+// 	<html>
+// 		<head>
+// 			<meta charset="UTF-8">
+// 			<title>Emoji Vote</title>
+// 			<link rel="icon" href="/img/favicon.ico">
+// 			<!-- Global site tag (gtag.js) - Google Analytics -->
+// 			<script async src="https://www.googletagmanager.com/gtag/js?id=UA-60040560-4"></script>
+// 			<script>
+// 			  window.dataLayer = window.dataLayer || [];
+// 			  function gtag(){dataLayer.push(arguments);}
+// 			  gtag('js', new Date());
+// 			  gtag('config', 'UA-60040560-4');
+// 			</script>
+// 		</head>
+// 		<body>
+// 			<div id="motd" class="motd">%s</div>
+// 			<div id="main" class="main"></div>
+// 		</body>
+// 		{{ if ne . ""}}
+// 			<script type="text/javascript" src="{{ . }}/dist/index_bundle.js" async></script>
+// 		{{else}}
+// 			<script type="text/javascript" src="/js" async></script>
+// 		{{end}}
+// 	</html>`, app.messageOfTheDay)
+// 	t, err := template.New("indexTemplate").Parse(indexTemplate)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	t.Execute(w, app.webpackDevServer)
+// }
 
 func (app *Server) jsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/javascript")
@@ -387,23 +398,37 @@ func handle(path string, h func(w http.ResponseWriter, r *http.Request)) {
 func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClient pb.EmojiServiceClient, votingClient pb.VotingServiceClient) {
 
 	motd := os.Getenv("MESSAGE_OF_THE_DAY")
+	r := mux.NewRouter()
 	Server := &Server{
 		emojiServiceClient:  emojiServiceClient,
 		votingServiceClient: votingClient,
 		indexBundle:         indexBundle,
 		webpackDevServer:    webpackDevServer,
 		messageOfTheDay:     motd,
-	}
+		router:              r,
+	}	
 
 	log.Printf("Starting web server on WEB_PORT=[%s] and MESSAGE_OF_THE_DAY=[%s]", webPort, motd)
-	handle("/", Server.indexHandler)
-	handle("/leaderboard", Server.indexHandler)
+	handle("/", api.NewMockServer().IndexHandler)
+	handle("/leaderboard", api.NewMockServer().IndexHandler)
 	handle("/js", Server.jsHandler)
 	handle("/img/favicon.ico", Server.faviconHandler)
 	handle("/api/list", Server.listEmojiHandler)
 	handle("/api/vote", Server.voteEmojiHandler)
 	handle("/api/leaderboard", Server.leaderboardHandler)
-
+	handle("/env", api.NewMockServer().EnvHandler)
+	handle("/version", api.NewMockServer().VersionHandler)
+	handle("/info", api.NewMockServer().InfoHandler)
+	Server.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+        httpSwagger.URL("/swagger/doc.json"),
+    ))
+    Server.router.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+        doc, err := swag.ReadDoc()
+        if err != nil {
+            Server.logger.Error("swagger error", zap.Error(err), zap.String("path", "/swagger.json"))
+        }
+        w.Write([]byte(doc))
+    })
 	// TODO: make static assets dir configurable
 	http.Handle("/dist/", http.StripPrefix("/dist/", http.FileServer(http.Dir("dist"))))
 

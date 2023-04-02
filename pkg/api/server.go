@@ -14,7 +14,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	_ "github.com/stefanprodan/podinfo/pkg/api/docs"
+	_ "github.com/jobinjosem/jjcustomvoto/pkg/api/docs"
 	"github.com/stefanprodan/podinfo/pkg/fscache"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"github.com/swaggo/swag"
@@ -97,11 +97,11 @@ func NewServer(config *Config, logger *zap.Logger) (*Server, error) {
 func (s *Server) registerHandlers() {
 	s.router.Handle("/metrics", promhttp.Handler())
 	s.router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
-	s.router.HandleFunc("/", s.indexHandler).HeadersRegexp("User-Agent", "^Mozilla.*").Methods("GET")
-	s.router.HandleFunc("/", s.infoHandler).Methods("GET")
-	s.router.HandleFunc("/version", s.versionHandler).Methods("GET")
+	s.router.HandleFunc("/", s.IndexHandler).HeadersRegexp("User-Agent", "^Mozilla.*").Methods("GET")
+	s.router.HandleFunc("/", s.InfoHandler).Methods("GET")
+	s.router.HandleFunc("/version", s.VersionHandler).Methods("GET")
 	s.router.HandleFunc("/echo", s.echoHandler).Methods("POST")
-	s.router.HandleFunc("/env", s.envHandler).Methods("GET", "POST")
+	s.router.HandleFunc("/env", s.EnvHandler).Methods("GET", "POST")
 	s.router.HandleFunc("/headers", s.echoHeadersHandler).Methods("GET", "POST")
 	s.router.HandleFunc("/delay/{wait:[0-9]+}", s.delayHandler).Methods("GET").Name("delay")
 	s.router.HandleFunc("/healthz", s.healthzHandler).Methods("GET")
@@ -118,7 +118,7 @@ func (s *Server) registerHandlers() {
 	s.router.HandleFunc("/configs", s.configReadHandler).Methods("GET")
 	s.router.HandleFunc("/token", s.tokenGenerateHandler).Methods("POST")
 	s.router.HandleFunc("/token/validate", s.tokenValidateHandler).Methods("GET")
-	s.router.HandleFunc("/api/info", s.infoHandler).Methods("GET")
+	s.router.HandleFunc("/api/info", s.InfoHandler).Methods("GET")
 	s.router.HandleFunc("/api/echo", s.echoHandler).Methods("POST")
 	s.router.HandleFunc("/ws/echo", s.echoWsHandler)
 	s.router.HandleFunc("/chunked", s.chunkedHandler)

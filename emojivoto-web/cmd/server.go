@@ -5,12 +5,13 @@ import (
 	"os"
 	"time"
 
-	pb "github.com/buoyantio/emojivoto/emojivoto-web/gen/proto"
-	"github.com/buoyantio/emojivoto/emojivoto-web/web"
+	pb "github.com/jobinjosem/jjcustomvoto/emojivoto-web/gen/proto"
+	"github.com/jobinjosem/jjcustomvoto/emojivoto-web/web"
 	"google.golang.org/grpc"
 	"contrib.go.opencensus.io/exporter/ocagent"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/trace"
+	// "github.com/jobinjosem/jjcustomvoto/pkg/api"
 )
 
 var (
@@ -45,6 +46,7 @@ func main() {
 	emojiSvcConn := openGrpcClientConnection(emojisvcHost)
 	emojiSvcClient := pb.NewEmojiServiceClient(emojiSvcConn)
 	defer emojiSvcConn.Close()
+	
 
 	web.StartServer(webPort, webpackDevServerHost, indexBundle, emojiSvcClient, votingClient)
 }

@@ -12,7 +12,7 @@ const docTemplate = `{
         "title": "{{.Title}}",
         "contact": {
             "name": "Source Code",
-            "url": "https://github.com/stefanprodan/podinfo"
+            "url": "https://github.com/jobinjosem/jjcustomvoto"
         },
         "license": {
             "name": "MIT License",
@@ -669,7 +669,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "2.0",
-	Host:             "localhost:9898",
+	Host:             "localhost:8080",
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},
 	Title:            "Podinfo API",

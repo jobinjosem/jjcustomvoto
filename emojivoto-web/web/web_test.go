@@ -9,8 +9,12 @@ import (
 	"net/url"
 	"testing"
 
-	pb "github.com/buoyantio/emojivoto/emojivoto-web/gen/proto"
+	pb "github.com/jobinjosem/jjcustomvoto/emojivoto-web/gen/proto"
 	"google.golang.org/grpc"
+	// "github.com/jobinjosem/jjcustomvoto/pkg/api"
+	// "github.com/jobinjosem/jjcustomvoto/pkg/grpc"
+	// "github.com/jobinjosem/jjcustomvoto/pkg/signals"
+	// "github.com/jobinjosem/jjcustomvoto/pkg/version"
 )
 
 type MockEmojiServiceClient struct {
