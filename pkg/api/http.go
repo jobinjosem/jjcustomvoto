@@ -9,6 +9,8 @@ import (
 	"log"
 
 	"go.uber.org/zap"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/codes"
 )
 
 
@@ -66,4 +68,28 @@ func WriteError(err error, w http.ResponseWriter, r *http.Request, status int, d
 	}
 
 	json.NewEncoder(w).Encode(errorMessage)
+}
+
+func (a *Api) ErrorResponse(w http.ResponseWriter, r *http.Request, span trace.Span, error string, code int) {
+	data := struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}{
+		Code:    code,
+		Message: error,
+	}
+
+	span.SetStatus(codes.Error, error)
+
+	body, err := json.Marshal(data)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		a.Logger.Error("JSON marshal failed", zap.Error(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusOK)
+	w.Write(prettyJSON(body))
 }

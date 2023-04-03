@@ -13,7 +13,7 @@ import (
 	// "os"
 	"context"
 	"github.com/jobinjosem/jjcustomvoto/pkg/api"
-	_ "github.com/stefanprodan/podinfo/pkg/api/docs"
+	_ "github.com/jobinjosem/jjcustomvoto/pkg/api/docs"
 	"strconv"
 
 	pb "github.com/jobinjosem/jjcustomvoto/emojivoto-web/gen/proto"
@@ -28,6 +28,7 @@ import (
 	// "github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"github.com/swaggo/swag"
+	// httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type Server struct {
@@ -443,7 +444,6 @@ func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClie
 		messageOfTheDay:     motd,
 	}
 	Api := &api.Api{}
-
 	Api.InitTracer(ctx)
 
 	log.Printf("Starting web server on WEB_PORT=[%s] and MESSAGE_OF_THE_DAY=[%s]", webPort, motd)
@@ -457,7 +457,10 @@ func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClie
 	handle("/api/env", Api.EnvHandler)
 	handle("/api/headers", Api.EchoHeadersHandler)
 	handle("/api/info", Api.VersionHandler)
-	// Server.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+	handle("/api/token", Api.TokenGenerateHandler)
+	handle("/api/token/validate", Api.TokenValidateHandler)
+	handle("/api/echo", Api.EchoHandler)
+	// Api.Router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 	//     httpSwagger.URL("/swagger/doc.json"),
 	// ))
 	handle("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
