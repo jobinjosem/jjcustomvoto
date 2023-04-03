@@ -429,9 +429,7 @@ func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClie
 		webpackDevServer:    webpackDevServer,
 		messageOfTheDay:     motd,
 	}
-	// API := &Api{
-    //    router
-	// }
+	api := &api.Api{}
 
 	log.Printf("Starting web server on WEB_PORT=[%s] and MESSAGE_OF_THE_DAY=[%s]", webPort, motd)
 	handle("/", Server.indexHandler)
@@ -442,8 +440,8 @@ func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClie
 	handle("/api/vote", Server.voteEmojiHandler)
 	handle("/api/leaderboard", Server.leaderboardHandler)
 	// handle("/env", api.NewMockServer().EnvHandler)
-	handle("/version", Api.VersionHandler)
-	// handle("/info", api.NewMockServer().InfoHandler)
+	// handle("/version", api.)
+	handle("/api/info", api.VersionHandler)
 	// Server.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
     //     httpSwagger.URL("/swagger/doc.json"),
     // ))
