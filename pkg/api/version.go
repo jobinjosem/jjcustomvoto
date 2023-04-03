@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/stefanprodan/podinfo/pkg/version"
+	"github.com/jobinjosem/jjcustomvoto/pkg/version"
 )
 
 // Version godoc
@@ -13,10 +13,10 @@ import (
 // @Produce json
 // @Router /version [get]
 // @Success 200 {object} api.MapResponse
-func (s *Server) VersionHandler(w http.ResponseWriter, r *http.Request) {
+func (a *Api) VersionHandler(w http.ResponseWriter, r *http.Request) {
 	result := map[string]string{
 		"version": version.VERSION,
 		"commit":  version.REVISION,
 	}
-	s.JSONResponse(w, r, result)
+	a.JSONResponse(w, r, result)
 }

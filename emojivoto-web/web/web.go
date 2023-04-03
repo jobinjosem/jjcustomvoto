@@ -4,24 +4,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	// "html/template"
+	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
-
-	"github.com/gorilla/mux"
-	pb "github.com/jobinjosem/jjcustomvoto/emojivoto-web/gen/proto"
 	"github.com/jobinjosem/jjcustomvoto/pkg/api"
-	_ "github.com/jobinjosem/jjcustomvoto/pkg/api/docs"
-	"github.com/swaggo/swag"
+
+	pb "github.com/jobinjosem/jjcustomvoto/emojivoto-web/gen/proto"
+	// "github.com/jobinjosem/jjcustomvoto/pkg/api"
+	// _ "github.com/jobinjosem/jjcustomvoto/pkg/api/docs"
+	// "github.com/swaggo/swag"
 	"go.opencensus.io/plugin/ochttp"
-	"go.uber.org/zap"
 	// "github.com/jobinjosem/jjcustomvoto/pkg/grpc"
 	// "github.com/jobinjosem/jjcustomvoto/pkg/signals"
 	// "github.com/jobinjosem/jjcustomvoto/pkg/version"
-	httpSwagger "github.com/swaggo/http-swagger"
+	// httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type Server struct {
@@ -30,14 +29,12 @@ type Server struct {
 	indexBundle         string
 	webpackDevServer    string
 	messageOfTheDay     string
-	router              *mux.Router
-	logger              *zap.Logger
 }
 
-func (app *Server) listEmojiHandler(w http.ResponseWriter, r *http.Request) {
-	serviceResponse, err := app.emojiServiceClient.ListAll(r.Context(), &pb.ListAllEmojiRequest{})
+func (s *Server) listEmojiHandler(w http.ResponseWriter, r *http.Request) {
+	serviceResponse, err := s.emojiServiceClient.ListAll(r.Context(), &pb.ListAllEmojiRequest{})
 	if err != nil {
-		writeError(err, w, r, http.StatusInternalServerError)
+		WriteError(err, w, r, http.StatusInternalServerError, true)
 		return
 	}
 
@@ -52,15 +49,15 @@ func (app *Server) listEmojiHandler(w http.ResponseWriter, r *http.Request) {
 	err = writeJsonBody(w, http.StatusOK, list)
 
 	if err != nil {
-		writeError(err, w, r, http.StatusInternalServerError)
+		WriteError(err, w, r, http.StatusInternalServerError, true)
 	}
 }
 
-func (app *Server) leaderboardHandler(w http.ResponseWriter, r *http.Request) {
-	results, err := app.votingServiceClient.Results(r.Context(), &pb.ResultsRequest{})
+func (s *Server) leaderboardHandler(w http.ResponseWriter, r *http.Request) {
+	results, err := s.votingServiceClient.Results(r.Context(), &pb.ResultsRequest{})
 
 	if err != nil {
-		writeError(err, w, r, http.StatusInternalServerError)
+		WriteError(err, w, r, http.StatusInternalServerError, true)
 		return
 	}
 
@@ -70,10 +67,10 @@ func (app *Server) leaderboardHandler(w http.ResponseWriter, r *http.Request) {
 			Shortcode: result.Shortcode,
 		}
 
-		findByShortcodeResponse, err := app.emojiServiceClient.FindByShortcode(r.Context(), findByShortcodeRequest)
+		findByShortcodeResponse, err := s.emojiServiceClient.FindByShortcode(r.Context(), findByShortcodeRequest)
 
 		if err != nil {
-			writeError(err, w, r, http.StatusInternalServerError)
+			WriteError(err, w, r, http.StatusInternalServerError, true)
 			return
 		}
 
@@ -89,288 +86,294 @@ func (app *Server) leaderboardHandler(w http.ResponseWriter, r *http.Request) {
 	err = writeJsonBody(w, http.StatusOK, representations)
 
 	if err != nil {
-		writeError(err, w, r, http.StatusInternalServerError)
+		WriteError(err, w, r, http.StatusInternalServerError, true)
 	}
 }
 
-func (app *Server) voteEmojiHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) voteEmojiHandler(w http.ResponseWriter, r *http.Request) {
 	emojiShortcode := r.FormValue("choice")
 	if emojiShortcode == "" {
 		error := errors.New(fmt.Sprintf("Emoji choice [%s] is mandatory", emojiShortcode))
-		writeError(error, w, r, http.StatusBadRequest)
+		WriteError(error, w, r, http.StatusBadRequest, true)
 		return
 	}
 
 	request := &pb.FindByShortcodeRequest{
 		Shortcode: emojiShortcode,
 	}
-	response, err := app.emojiServiceClient.FindByShortcode(r.Context(), request)
+	response, err := s.emojiServiceClient.FindByShortcode(r.Context(), request)
 	if err != nil {
-		writeError(err, w, r, http.StatusInternalServerError)
+		WriteError(err, w, r, http.StatusInternalServerError, true)
 		return
 	}
 
 	if response.Emoji == nil {
 		err = errors.New(fmt.Sprintf("Choosen emoji shortcode [%s] doesnt exist", emojiShortcode))
-		writeError(err, w, r, http.StatusBadRequest)
+		WriteError(err, w, r, http.StatusBadRequest, true)
 		return
 	}
 
 	voteRequest := &pb.VoteRequest{}
 	switch emojiShortcode {
 	case ":poop:":
-		_, err = app.votingServiceClient.VotePoop(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VotePoop(r.Context(), voteRequest)
 	case ":joy:":
-		_, err = app.votingServiceClient.VoteJoy(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteJoy(r.Context(), voteRequest)
 	case ":sunglasses:":
-		_, err = app.votingServiceClient.VoteSunglasses(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteSunglasses(r.Context(), voteRequest)
 	case ":relaxed:":
-		_, err = app.votingServiceClient.VoteRelaxed(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteRelaxed(r.Context(), voteRequest)
 	case ":stuck_out_tongue_winking_eye:":
-		_, err = app.votingServiceClient.VoteStuckOutTongueWinkingEye(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteStuckOutTongueWinkingEye(r.Context(), voteRequest)
 	case ":money_mouth_face:":
-		_, err = app.votingServiceClient.VoteMoneyMouthFace(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteMoneyMouthFace(r.Context(), voteRequest)
 	case ":flushed:":
-		_, err = app.votingServiceClient.VoteFlushed(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteFlushed(r.Context(), voteRequest)
 	case ":mask:":
-		_, err = app.votingServiceClient.VoteMask(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteMask(r.Context(), voteRequest)
 	case ":nerd_face:":
-		_, err = app.votingServiceClient.VoteNerdFace(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteNerdFace(r.Context(), voteRequest)
 	case ":ghost:":
-		_, err = app.votingServiceClient.VoteGhost(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteGhost(r.Context(), voteRequest)
 	case ":skull_and_crossbones:":
-		_, err = app.votingServiceClient.VoteSkullAndCrossbones(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteSkullAndCrossbones(r.Context(), voteRequest)
 	case ":heart_eyes_cat:":
-		_, err = app.votingServiceClient.VoteHeartEyesCat(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteHeartEyesCat(r.Context(), voteRequest)
 	case ":hear_no_evil:":
-		_, err = app.votingServiceClient.VoteHearNoEvil(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteHearNoEvil(r.Context(), voteRequest)
 	case ":see_no_evil:":
-		_, err = app.votingServiceClient.VoteSeeNoEvil(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteSeeNoEvil(r.Context(), voteRequest)
 	case ":speak_no_evil:":
-		_, err = app.votingServiceClient.VoteSpeakNoEvil(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteSpeakNoEvil(r.Context(), voteRequest)
 	case ":boy:":
-		_, err = app.votingServiceClient.VoteBoy(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteBoy(r.Context(), voteRequest)
 	case ":girl:":
-		_, err = app.votingServiceClient.VoteGirl(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteGirl(r.Context(), voteRequest)
 	case ":man:":
-		_, err = app.votingServiceClient.VoteMan(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteMan(r.Context(), voteRequest)
 	case ":woman:":
-		_, err = app.votingServiceClient.VoteWoman(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteWoman(r.Context(), voteRequest)
 	case ":older_man:":
-		_, err = app.votingServiceClient.VoteOlderMan(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteOlderMan(r.Context(), voteRequest)
 	case ":policeman:":
-		_, err = app.votingServiceClient.VotePoliceman(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VotePoliceman(r.Context(), voteRequest)
 	case ":guardsman:":
-		_, err = app.votingServiceClient.VoteGuardsman(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteGuardsman(r.Context(), voteRequest)
 	case ":construction_worker_man:":
-		_, err = app.votingServiceClient.VoteConstructionWorkerMan(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteConstructionWorkerMan(r.Context(), voteRequest)
 	case ":prince:":
-		_, err = app.votingServiceClient.VotePrince(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VotePrince(r.Context(), voteRequest)
 	case ":princess:":
-		_, err = app.votingServiceClient.VotePrincess(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VotePrincess(r.Context(), voteRequest)
 	case ":man_in_tuxedo:":
-		_, err = app.votingServiceClient.VoteManInTuxedo(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteManInTuxedo(r.Context(), voteRequest)
 	case ":bride_with_veil:":
-		_, err = app.votingServiceClient.VoteBrideWithVeil(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteBrideWithVeil(r.Context(), voteRequest)
 	case ":mrs_claus:":
-		_, err = app.votingServiceClient.VoteMrsClaus(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteMrsClaus(r.Context(), voteRequest)
 	case ":santa:":
-		_, err = app.votingServiceClient.VoteSanta(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteSanta(r.Context(), voteRequest)
 	case ":turkey:":
-		_, err = app.votingServiceClient.VoteTurkey(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteTurkey(r.Context(), voteRequest)
 	case ":rabbit:":
-		_, err = app.votingServiceClient.VoteRabbit(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteRabbit(r.Context(), voteRequest)
 	case ":no_good_woman:":
-		_, err = app.votingServiceClient.VoteNoGoodWoman(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteNoGoodWoman(r.Context(), voteRequest)
 	case ":ok_woman:":
-		_, err = app.votingServiceClient.VoteOkWoman(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteOkWoman(r.Context(), voteRequest)
 	case ":raising_hand_woman:":
-		_, err = app.votingServiceClient.VoteRaisingHandWoman(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteRaisingHandWoman(r.Context(), voteRequest)
 	case ":bowing_man:":
-		_, err = app.votingServiceClient.VoteBowingMan(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteBowingMan(r.Context(), voteRequest)
 	case ":man_facepalming:":
-		_, err = app.votingServiceClient.VoteManFacepalming(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteManFacepalming(r.Context(), voteRequest)
 	case ":woman_shrugging:":
-		_, err = app.votingServiceClient.VoteWomanShrugging(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteWomanShrugging(r.Context(), voteRequest)
 	case ":massage_woman:":
-		_, err = app.votingServiceClient.VoteMassageWoman(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteMassageWoman(r.Context(), voteRequest)
 	case ":walking_man:":
-		_, err = app.votingServiceClient.VoteWalkingMan(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteWalkingMan(r.Context(), voteRequest)
 	case ":running_man:":
-		_, err = app.votingServiceClient.VoteRunningMan(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteRunningMan(r.Context(), voteRequest)
 	case ":dancer:":
-		_, err = app.votingServiceClient.VoteDancer(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteDancer(r.Context(), voteRequest)
 	case ":man_dancing:":
-		_, err = app.votingServiceClient.VoteManDancing(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteManDancing(r.Context(), voteRequest)
 	case ":dancing_women:":
-		_, err = app.votingServiceClient.VoteDancingWomen(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteDancingWomen(r.Context(), voteRequest)
 	case ":rainbow:":
-		_, err = app.votingServiceClient.VoteRainbow(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteRainbow(r.Context(), voteRequest)
 	case ":skier:":
-		_, err = app.votingServiceClient.VoteSkier(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteSkier(r.Context(), voteRequest)
 	case ":golfing_man:":
-		_, err = app.votingServiceClient.VoteGolfingMan(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteGolfingMan(r.Context(), voteRequest)
 	case ":surfing_man:":
-		_, err = app.votingServiceClient.VoteSurfingMan(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteSurfingMan(r.Context(), voteRequest)
 	case ":basketball_man:":
-		_, err = app.votingServiceClient.VoteBasketballMan(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteBasketballMan(r.Context(), voteRequest)
 	case ":biking_man:":
-		_, err = app.votingServiceClient.VoteBikingMan(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteBikingMan(r.Context(), voteRequest)
 	case ":point_up_2:":
-		_, err = app.votingServiceClient.VotePointUp2(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VotePointUp2(r.Context(), voteRequest)
 	case ":vulcan_salute:":
-		_, err = app.votingServiceClient.VoteVulcanSalute(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteVulcanSalute(r.Context(), voteRequest)
 	case ":metal:":
-		_, err = app.votingServiceClient.VoteMetal(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteMetal(r.Context(), voteRequest)
 	case ":call_me_hand:":
-		_, err = app.votingServiceClient.VoteCallMeHand(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteCallMeHand(r.Context(), voteRequest)
 	case ":thumbsup:":
-		_, err = app.votingServiceClient.VoteThumbsup(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteThumbsup(r.Context(), voteRequest)
 	case ":wave:":
-		_, err = app.votingServiceClient.VoteWave(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteWave(r.Context(), voteRequest)
 	case ":clap:":
-		_, err = app.votingServiceClient.VoteClap(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteClap(r.Context(), voteRequest)
 	case ":raised_hands:":
-		_, err = app.votingServiceClient.VoteRaisedHands(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteRaisedHands(r.Context(), voteRequest)
 	case ":pray:":
-		_, err = app.votingServiceClient.VotePray(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VotePray(r.Context(), voteRequest)
 	case ":dog:":
-		_, err = app.votingServiceClient.VoteDog(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteDog(r.Context(), voteRequest)
 	case ":cat2:":
-		_, err = app.votingServiceClient.VoteCat2(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteCat2(r.Context(), voteRequest)
 	case ":pig:":
-		_, err = app.votingServiceClient.VotePig(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VotePig(r.Context(), voteRequest)
 	case ":hatching_chick:":
-		_, err = app.votingServiceClient.VoteHatchingChick(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteHatchingChick(r.Context(), voteRequest)
 	case ":snail:":
-		_, err = app.votingServiceClient.VoteSnail(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteSnail(r.Context(), voteRequest)
 	case ":bacon:":
-		_, err = app.votingServiceClient.VoteBacon(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteBacon(r.Context(), voteRequest)
 	case ":pizza:":
-		_, err = app.votingServiceClient.VotePizza(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VotePizza(r.Context(), voteRequest)
 	case ":taco:":
-		_, err = app.votingServiceClient.VoteTaco(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteTaco(r.Context(), voteRequest)
 	case ":burrito:":
-		_, err = app.votingServiceClient.VoteBurrito(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteBurrito(r.Context(), voteRequest)
 	case ":ramen:":
-		_, err = app.votingServiceClient.VoteRamen(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteRamen(r.Context(), voteRequest)
 	case ":doughnut:":
-		_, err = app.votingServiceClient.VoteDoughnut(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteDoughnut(r.Context(), voteRequest)
 	case ":champagne:":
-		_, err = app.votingServiceClient.VoteChampagne(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteChampagne(r.Context(), voteRequest)
 	case ":tropical_drink:":
-		_, err = app.votingServiceClient.VoteTropicalDrink(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteTropicalDrink(r.Context(), voteRequest)
 	case ":beer:":
-		_, err = app.votingServiceClient.VoteBeer(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteBeer(r.Context(), voteRequest)
 	case ":tumbler_glass:":
-		_, err = app.votingServiceClient.VoteTumblerGlass(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteTumblerGlass(r.Context(), voteRequest)
 	case ":world_map:":
-		_, err = app.votingServiceClient.VoteWorldMap(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteWorldMap(r.Context(), voteRequest)
 	case ":beach_umbrella:":
-		_, err = app.votingServiceClient.VoteBeachUmbrella(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteBeachUmbrella(r.Context(), voteRequest)
 	case ":mountain_snow:":
-		_, err = app.votingServiceClient.VoteMountainSnow(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteMountainSnow(r.Context(), voteRequest)
 	case ":camping:":
-		_, err = app.votingServiceClient.VoteCamping(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteCamping(r.Context(), voteRequest)
 	case ":steam_locomotive:":
-		_, err = app.votingServiceClient.VoteSteamLocomotive(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteSteamLocomotive(r.Context(), voteRequest)
 	case ":flight_departure:":
-		_, err = app.votingServiceClient.VoteFlightDeparture(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteFlightDeparture(r.Context(), voteRequest)
 	case ":rocket:":
-		_, err = app.votingServiceClient.VoteRocket(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteRocket(r.Context(), voteRequest)
 	case ":star2:":
-		_, err = app.votingServiceClient.VoteStar2(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteStar2(r.Context(), voteRequest)
 	case ":sun_behind_small_cloud:":
-		_, err = app.votingServiceClient.VoteSunBehindSmallCloud(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteSunBehindSmallCloud(r.Context(), voteRequest)
 	case ":cloud_with_rain:":
-		_, err = app.votingServiceClient.VoteCloudWithRain(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteCloudWithRain(r.Context(), voteRequest)
 	case ":fire:":
-		_, err = app.votingServiceClient.VoteFire(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteFire(r.Context(), voteRequest)
 	case ":jack_o_lantern:":
-		_, err = app.votingServiceClient.VoteJackOLantern(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteJackOLantern(r.Context(), voteRequest)
 	case ":balloon:":
-		_, err = app.votingServiceClient.VoteBalloon(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteBalloon(r.Context(), voteRequest)
 	case ":tada:":
-		_, err = app.votingServiceClient.VoteTada(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteTada(r.Context(), voteRequest)
 	case ":trophy:":
-		_, err = app.votingServiceClient.VoteTrophy(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteTrophy(r.Context(), voteRequest)
 	case ":iphone:":
-		_, err = app.votingServiceClient.VoteIphone(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteIphone(r.Context(), voteRequest)
 	case ":pager:":
-		_, err = app.votingServiceClient.VotePager(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VotePager(r.Context(), voteRequest)
 	case ":fax:":
-		_, err = app.votingServiceClient.VoteFax(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteFax(r.Context(), voteRequest)
 	case ":bulb:":
-		_, err = app.votingServiceClient.VoteBulb(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteBulb(r.Context(), voteRequest)
 	case ":money_with_wings:":
-		_, err = app.votingServiceClient.VoteMoneyWithWings(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteMoneyWithWings(r.Context(), voteRequest)
 	case ":crystal_ball:":
-		_, err = app.votingServiceClient.VoteCrystalBall(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteCrystalBall(r.Context(), voteRequest)
 	case ":underage:":
-		_, err = app.votingServiceClient.VoteUnderage(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteUnderage(r.Context(), voteRequest)
 	case ":interrobang:":
-		_, err = app.votingServiceClient.VoteInterrobang(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteInterrobang(r.Context(), voteRequest)
 	case ":100:":
-		_, err = app.votingServiceClient.Vote100(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.Vote100(r.Context(), voteRequest)
 	case ":checkered_flag:":
-		_, err = app.votingServiceClient.VoteCheckeredFlag(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteCheckeredFlag(r.Context(), voteRequest)
 	case ":crossed_swords:":
-		_, err = app.votingServiceClient.VoteCrossedSwords(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteCrossedSwords(r.Context(), voteRequest)
 	case ":floppy_disk:":
-		_, err = app.votingServiceClient.VoteFloppyDisk(r.Context(), voteRequest)
+		_, err = s.votingServiceClient.VoteFloppyDisk(r.Context(), voteRequest)
 	}
 	if err != nil {
-		writeError(err, w, r, http.StatusInternalServerError)
+		WriteError(err, w, r, http.StatusInternalServerError, true)
 		return
 	}
 }
 
-// func (app *Server) indexHandler(w http.ResponseWriter, r *http.Request) {
-// 	w.Header().Set("Content-Type", "text/html")
+func (s *Server) indexHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
 
-// 	indexTemplate := fmt.Sprintf(`
-// 	<!DOCTYPE html>
-// 	<html>
-// 		<head>
-// 			<meta charset="UTF-8">
-// 			<title>Emoji Vote</title>
-// 			<link rel="icon" href="/img/favicon.ico">
-// 			<!-- Global site tag (gtag.js) - Google Analytics -->
-// 			<script async src="https://www.googletagmanager.com/gtag/js?id=UA-60040560-4"></script>
-// 			<script>
-// 			  window.dataLayer = window.dataLayer || [];
-// 			  function gtag(){dataLayer.push(arguments);}
-// 			  gtag('js', new Date());
-// 			  gtag('config', 'UA-60040560-4');
-// 			</script>
-// 		</head>
-// 		<body>
-// 			<div id="motd" class="motd">%s</div>
-// 			<div id="main" class="main"></div>
-// 		</body>
-// 		{{ if ne . ""}}
-// 			<script type="text/javascript" src="{{ . }}/dist/index_bundle.js" async></script>
-// 		{{else}}
-// 			<script type="text/javascript" src="/js" async></script>
-// 		{{end}}
-// 	</html>`, app.messageOfTheDay)
-// 	t, err := template.New("indexTemplate").Parse(indexTemplate)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	t.Execute(w, app.webpackDevServer)
-// }
+	indexTemplate := fmt.Sprintf(`
+	<!DOCTYPE html>
+	<html>
+		<head>
+			<meta charset="UTF-8">
+			<title>Emoji Vote</title>
+			<link rel="icon" href="/img/favicon.ico">
+			<!-- Global site tag (gtag.js) - Google Analytics -->
+			<script async src="https://www.googletagmanager.com/gtag/js?id=UA-60040560-4"></script>
+			<script>
+			  window.dataLayer = window.dataLayer || [];
+			  function gtag(){dataLayer.push(arguments);}
+			  gtag('js', new Date());
+			  gtag('config', 'UA-60040560-4');
+			</script>
+		</head>
+		<body>
+			<div id="motd" class="motd">%s</div>
+			<div id="main" class="main"></div>
+		</body>
+		{{ if ne . ""}}
+			<script type="text/javascript" src="{{ . }}/dist/index_bundle.js" async></script>
+		{{else}}
+			<script type="text/javascript" src="/js" async></script>
+		{{end}}
+	</html>`, s.messageOfTheDay)
+	t, err := template.New("indexTemplate").Parse(indexTemplate)
+	if err != nil {
+		panic(err)
+	}
+	t.Execute(w, s.webpackDevServer)
+}
 
-func (app *Server) jsHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) jsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/javascript")
-	f, err := ioutil.ReadFile(app.indexBundle)
+	f, err := ioutil.ReadFile(s.indexBundle)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Fprint(w, string(f))
 }
 
-func (app *Server) faviconHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) faviconHandler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			WriteError(fmt.Errorf("%v", err), w, r, http.StatusInternalServerError, true)
+		}
+	}()
+
 	http.ServeFile(w, r, "./web/favicon.ico")
 }
 
@@ -380,12 +383,33 @@ func writeJsonBody(w http.ResponseWriter, status int, body interface{}) error {
 	return json.NewEncoder(w).Encode(body)
 }
 
-func writeError(err error, w http.ResponseWriter, r *http.Request, status int) {
-	log.Printf("Error serving request [%v]: %v", r, err)
+func WriteError(err error, w http.ResponseWriter, r *http.Request, status int, debug bool) {
+	logMessage := fmt.Sprintf("Error serving request [%v]: %v", r, err)
+
+	if debug {
+		logMessage += fmt.Sprintf("\nRequest Headers: %+v", r.Header)
+		logMessage += fmt.Sprintf("\nRequest Body: %+v", r.Body)
+	}
+
+	log.Printf(logMessage)
+
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(status)
-	errorMessage := make(map[string]string)
+
+	errorMessage := make(map[string]interface{})
 	errorMessage["error"] = fmt.Sprintf("%v", err)
+
+	if debug {
+		errorMessage["method"] = r.Method
+		errorMessage["url"] = r.URL.String()
+
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			body = []byte{}
+		}
+		errorMessage["request_body"] = string(body)
+	}
+
 	json.NewEncoder(w).Encode(errorMessage)
 }
 
@@ -398,37 +422,38 @@ func handle(path string, h func(w http.ResponseWriter, r *http.Request)) {
 func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClient pb.EmojiServiceClient, votingClient pb.VotingServiceClient) {
 
 	motd := os.Getenv("MESSAGE_OF_THE_DAY")
-	r := mux.NewRouter()
 	Server := &Server{
 		emojiServiceClient:  emojiServiceClient,
 		votingServiceClient: votingClient,
 		indexBundle:         indexBundle,
 		webpackDevServer:    webpackDevServer,
 		messageOfTheDay:     motd,
-		router:              r,
-	}	
+	}
+	// API := &Api{
+    //    router
+	// }
 
 	log.Printf("Starting web server on WEB_PORT=[%s] and MESSAGE_OF_THE_DAY=[%s]", webPort, motd)
-	handle("/", api.NewMockServer().IndexHandler)
-	handle("/leaderboard", api.NewMockServer().IndexHandler)
+	handle("/", Server.indexHandler)
+	handle("/leaderboard", Server.indexHandler)
 	handle("/js", Server.jsHandler)
 	handle("/img/favicon.ico", Server.faviconHandler)
 	handle("/api/list", Server.listEmojiHandler)
 	handle("/api/vote", Server.voteEmojiHandler)
 	handle("/api/leaderboard", Server.leaderboardHandler)
-	handle("/env", api.NewMockServer().EnvHandler)
-	handle("/version", api.NewMockServer().VersionHandler)
-	handle("/info", api.NewMockServer().InfoHandler)
-	Server.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-        httpSwagger.URL("/swagger/doc.json"),
-    ))
-    Server.router.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
-        doc, err := swag.ReadDoc()
-        if err != nil {
-            Server.logger.Error("swagger error", zap.Error(err), zap.String("path", "/swagger.json"))
-        }
-        w.Write([]byte(doc))
-    })
+	// handle("/env", api.NewMockServer().EnvHandler)
+	handle("/version", Api.VersionHandler)
+	// handle("/info", api.NewMockServer().InfoHandler)
+	// Server.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+    //     httpSwagger.URL("/swagger/doc.json"),
+    // ))
+    // Server.router.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+    //     doc, err := swag.ReadDoc()
+    //     if err != nil {
+    //         Server.logger.Error("swagger error", zap.Error(err), zap.String("path", "/swagger.json"))
+    //     }
+    //     w.Write([]byte(doc))
+    // })
 	// TODO: make static assets dir configurable
 	http.Handle("/dist/", http.StripPrefix("/dist/", http.FileServer(http.Dir("dist"))))
 

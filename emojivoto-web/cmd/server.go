@@ -11,7 +11,6 @@ import (
 	"contrib.go.opencensus.io/exporter/ocagent"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/trace"
-	// "github.com/jobinjosem/jjcustomvoto/pkg/api"
 )
 
 var (
