@@ -7,10 +7,13 @@ import (
 	"html/template"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
-	"os"
-	"strconv"
+	"time"
+	// "os"
+	"context"
 	"github.com/jobinjosem/jjcustomvoto/pkg/api"
+	"strconv"
 
 	pb "github.com/jobinjosem/jjcustomvoto/emojivoto-web/gen/proto"
 	// "github.com/jobinjosem/jjcustomvoto/pkg/api"
@@ -21,6 +24,7 @@ import (
 	// "github.com/jobinjosem/jjcustomvoto/pkg/signals"
 	// "github.com/jobinjosem/jjcustomvoto/pkg/version"
 	// httpSwagger "github.com/swaggo/http-swagger"
+	"github.com/gorilla/mux"
 )
 
 type Server struct {
@@ -29,6 +33,7 @@ type Server struct {
 	indexBundle         string
 	webpackDevServer    string
 	messageOfTheDay     string
+	router              *mux.Router
 }
 
 func (s *Server) listEmojiHandler(w http.ResponseWriter, r *http.Request) {
@@ -420,16 +425,25 @@ func handle(path string, h func(w http.ResponseWriter, r *http.Request)) {
 }
 
 func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClient pb.EmojiServiceClient, votingClient pb.VotingServiceClient) {
-
-	motd := os.Getenv("MESSAGE_OF_THE_DAY")
+	rand.Seed(time.Now().UnixNano())
+	messages := []string{
+		"Hello, world!",
+		"Welcome to the jungle!",
+	}
+	motd := messages[rand.Intn(len(messages))]
+	// motd := os.Getenv("MESSAGE_OF_THE_DAY")
+	ctx := context.Background()
 	Server := &Server{
 		emojiServiceClient:  emojiServiceClient,
 		votingServiceClient: votingClient,
 		indexBundle:         indexBundle,
 		webpackDevServer:    webpackDevServer,
 		messageOfTheDay:     motd,
+		router:              mux.NewRouter(),
 	}
 	api := &api.Api{}
+
+	api.InitTracer(ctx)
 
 	log.Printf("Starting web server on WEB_PORT=[%s] and MESSAGE_OF_THE_DAY=[%s]", webPort, motd)
 	handle("/", Server.indexHandler)
@@ -439,19 +453,19 @@ func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClie
 	handle("/api/list", Server.listEmojiHandler)
 	handle("/api/vote", Server.voteEmojiHandler)
 	handle("/api/leaderboard", Server.leaderboardHandler)
-	// handle("/env", api.NewMockServer().EnvHandler)
-	// handle("/version", api.)
+	handle("/api/env", api.EnvHandler)
+	handle("/api/headers", api.EchoHeadersHandler)
 	handle("/api/info", api.VersionHandler)
 	// Server.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-    //     httpSwagger.URL("/swagger/doc.json"),
-    // ))
-    // Server.router.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
-    //     doc, err := swag.ReadDoc()
-    //     if err != nil {
-    //         Server.logger.Error("swagger error", zap.Error(err), zap.String("path", "/swagger.json"))
-    //     }
-    //     w.Write([]byte(doc))
-    // })
+	//     httpSwagger.URL("/swagger/doc.json"),
+	// ))
+	// Server.router.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+	//     doc, err := swag.ReadDoc()
+	//     if err != nil {
+	//         Server.logger.Error("swagger error", zap.Error(err), zap.String("path", "/swagger.json"))
+	//     }
+	//     w.Write([]byte(doc))
+	// })
 	// TODO: make static assets dir configurable
 	http.Handle("/dist/", http.StripPrefix("/dist/", http.FileServer(http.Dir("dist"))))
 
