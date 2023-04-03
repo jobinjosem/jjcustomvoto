@@ -36,7 +36,7 @@ func (a *Api) InitTracer(ctx context.Context) {
 	client := otlptracegrpc.NewClient()
 	exporter, err := otlptrace.New(ctx, client)
 	if err != nil {
-		a.logger.Error("creating OTLP trace exporter", zap.Error(err))
+		a.Logger.Error("creating OTLP trace exporter", zap.Error(err))
 	}
 
 	a.tracerProvider = sdktrace.NewTracerProvider(

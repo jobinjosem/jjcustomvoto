@@ -10,12 +10,13 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
+	
 )
 
 
 type Api struct {
-	router         *mux.Router
-	logger         *zap.Logger
+	Router         *mux.Router
+	Logger         *zap.Logger
 	pool           *redis.Pool
 	handler        http.Handler
 	tracer         trace.Tracer

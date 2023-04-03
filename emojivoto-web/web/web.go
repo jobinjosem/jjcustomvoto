@@ -13,6 +13,7 @@ import (
 	// "os"
 	"context"
 	"github.com/jobinjosem/jjcustomvoto/pkg/api"
+	_ "github.com/stefanprodan/podinfo/pkg/api/docs"
 	"strconv"
 
 	pb "github.com/jobinjosem/jjcustomvoto/emojivoto-web/gen/proto"
@@ -24,7 +25,9 @@ import (
 	// "github.com/jobinjosem/jjcustomvoto/pkg/signals"
 	// "github.com/jobinjosem/jjcustomvoto/pkg/version"
 	// httpSwagger "github.com/swaggo/http-swagger"
-	"github.com/gorilla/mux"
+	// "github.com/gorilla/mux"
+	"go.uber.org/zap"
+	"github.com/swaggo/swag"
 )
 
 type Server struct {
@@ -33,7 +36,6 @@ type Server struct {
 	indexBundle         string
 	webpackDevServer    string
 	messageOfTheDay     string
-	router              *mux.Router
 }
 
 func (s *Server) listEmojiHandler(w http.ResponseWriter, r *http.Request) {
@@ -439,11 +441,10 @@ func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClie
 		indexBundle:         indexBundle,
 		webpackDevServer:    webpackDevServer,
 		messageOfTheDay:     motd,
-		router:              mux.NewRouter(),
 	}
-	api := &api.Api{}
+	Api := &api.Api{}
 
-	api.InitTracer(ctx)
+	Api.InitTracer(ctx)
 
 	log.Printf("Starting web server on WEB_PORT=[%s] and MESSAGE_OF_THE_DAY=[%s]", webPort, motd)
 	handle("/", Server.indexHandler)
@@ -453,19 +454,19 @@ func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClie
 	handle("/api/list", Server.listEmojiHandler)
 	handle("/api/vote", Server.voteEmojiHandler)
 	handle("/api/leaderboard", Server.leaderboardHandler)
-	handle("/api/env", api.EnvHandler)
-	handle("/api/headers", api.EchoHeadersHandler)
-	handle("/api/info", api.VersionHandler)
+	handle("/api/env", Api.EnvHandler)
+	handle("/api/headers", Api.EchoHeadersHandler)
+	handle("/api/info", Api.VersionHandler)
 	// Server.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 	//     httpSwagger.URL("/swagger/doc.json"),
 	// ))
-	// Server.router.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
-	//     doc, err := swag.ReadDoc()
-	//     if err != nil {
-	//         Server.logger.Error("swagger error", zap.Error(err), zap.String("path", "/swagger.json"))
-	//     }
-	//     w.Write([]byte(doc))
-	// })
+	handle("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+	    doc, err := swag.ReadDoc()
+	    if err != nil {
+	        Api.Logger.Error("swagger error", zap.Error(err), zap.String("path", "/swagger.json"))
+	    }
+	    w.Write([]byte(doc))
+	})
 	// TODO: make static assets dir configurable
 	http.Handle("/dist/", http.StripPrefix("/dist/", http.FileServer(http.Dir("dist"))))
 

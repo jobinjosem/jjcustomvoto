@@ -17,7 +17,7 @@ func (a *Api) JSONResponse(w http.ResponseWriter, r *http.Request, result interf
 	body, err := json.Marshal(result)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		a.logger.Error("JSON marshal failed", zap.Error(err))
+		a.Logger.Error("JSON marshal failed", zap.Error(err))
 		return
 	}
 
