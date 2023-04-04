@@ -11,6 +11,7 @@ import (
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/trace"
 	"google.golang.org/grpc"
+	"github.com/jobinjosem/jjcustomvoto/pkg/api"
 )
 
 var (
@@ -46,7 +47,9 @@ func main() {
 	emojiSvcClient := pb.NewEmojiServiceClient(emojiSvcConn)
 	defer emojiSvcConn.Close()
 
-	web.StartServer(webPort, webpackDevServerHost, indexBundle, emojiSvcClient, votingClient)
+	var srvCfg api.Config
+
+	web.StartServer(webPort, webpackDevServerHost, indexBundle, emojiSvcClient, votingClient, &srvCfg)
 }
 
 func openGrpcClientConnection(host string) *grpc.ClientConn {

@@ -25,7 +25,7 @@ type jwtCustomClaims struct {
 // @Router /token [post]
 // @Success 200 {object} api.TokenResponse
 func (a *Api) TokenGenerateHandler(w http.ResponseWriter, r *http.Request) {
-	_, span := a.tracer.Start(r.Context(), "tokenGenerateHandler")
+	_, span := a.Tracer.Start(r.Context(), "tokenGenerateHandler")
 	defer span.End()
 
 	body, err := io.ReadAll(r.Body)
@@ -77,7 +77,7 @@ func (a *Api) TokenGenerateHandler(w http.ResponseWriter, r *http.Request) {
 // Get: JWT=$(curl -s -d 'test' localhost:9898/token | jq -r .token)
 // Post: curl -H "Authorization: Bearer ${JWT}" localhost:9898/token/validate
 func (a *Api) TokenValidateHandler(w http.ResponseWriter, r *http.Request) {
-	_, span := a.tracer.Start(r.Context(), "tokenValidateHandler")
+	_, span := a.Tracer.Start(r.Context(), "tokenValidateHandler")
 	defer span.End()
 
 	authorizationHeader := r.Header.Get("authorization")

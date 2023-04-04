@@ -93,3 +93,17 @@ func (a *Api) ErrorResponse(w http.ResponseWriter, r *http.Request, span trace.S
 	w.WriteHeader(http.StatusOK)
 	w.Write(prettyJSON(body))
 }
+
+func (a *Api) JSONResponseCode(w http.ResponseWriter, r *http.Request, result interface{}, responseCode int) {
+	body, err := json.Marshal(result)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		a.Logger.Error("JSON marshal failed", zap.Error(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(responseCode)
+	w.Write(prettyJSON(body))
+}

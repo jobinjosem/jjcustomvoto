@@ -13,7 +13,7 @@ import (
 // @Router /headers [get]
 // @Success 200 {object} api.ArrayResponse
 func (a *Api) EchoHeadersHandler(w http.ResponseWriter, r *http.Request) {
-	_, span := a.tracer.Start(r.Context(), "EchoHeadersHandler")
+	_, span := a.Tracer.Start(r.Context(), "EchoHeadersHandler")
 	defer span.End()
 	a.JSONResponse(w, r, r.Header)
 }

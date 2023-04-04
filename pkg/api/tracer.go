@@ -29,7 +29,7 @@ const (
 func (a *Api) InitTracer(ctx context.Context) {
 	if viper.GetString("otel-service-name") == "" {
 		nop := trace.NewNoopTracerProvider()
-		a.tracer = nop.Tracer(viper.GetString("otel-service-name"))
+		a.Tracer = nop.Tracer(viper.GetString("otel-service-name"))
 		return
 	}
 
@@ -39,7 +39,7 @@ func (a *Api) InitTracer(ctx context.Context) {
 		a.Logger.Error("creating OTLP trace exporter", zap.Error(err))
 	}
 
-	a.tracerProvider = sdktrace.NewTracerProvider(
+	a.TracerProvider = sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
@@ -48,7 +48,7 @@ func (a *Api) InitTracer(ctx context.Context) {
 		)),
 	)
 
-	otel.SetTracerProvider(a.tracerProvider)
+	otel.SetTracerProvider(a.TracerProvider)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},
@@ -58,7 +58,7 @@ func (a *Api) InitTracer(ctx context.Context) {
 		&xray.Propagator{},
 	))
 
-	a.tracer = a.tracerProvider.Tracer(
+	a.Tracer = a.TracerProvider.Tracer(
 		instrumentationName,
 		trace.WithInstrumentationVersion(version.VERSION),
 		trace.WithSchemaURL(semconv.SchemaURL),

@@ -24,7 +24,7 @@ import (
 // @Router /api/echo [post]
 // @Success 202 {object} api.MapResponse
 func (a *Api) EchoHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, span :=a.tracer.Start(r.Context(), "EchoHandler")
+	ctx, span := a.Tracer.Start(r.Context(), "EchoHandler")
 	defer span.End()
 
 	body, err := io.ReadAll(r.Body)
@@ -98,11 +98,11 @@ func (a *Api) EchoHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		wg.Wait()
 
-		w.Header().Set("X-Color",a.Config.UIColor)
+		w.Header().Set("X-Color", a.Config.UIColor)
 		a.JSONResponse(w, r, result)
 
 	} else {
-		w.Header().Set("X-Color",a.Config.UIColor)
+		w.Header().Set("X-Color", a.Config.UIColor)
 		w.WriteHeader(http.StatusAccepted)
 		w.Write(body)
 	}

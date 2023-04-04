@@ -9,27 +9,46 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	_ "net/http/pprof"
 	"time"
+
 	// "os"
 	"context"
+	"strconv"
+
+	"github.com/gorilla/mux"
 	"github.com/jobinjosem/jjcustomvoto/pkg/api"
 	_ "github.com/jobinjosem/jjcustomvoto/pkg/api/docs"
-	"strconv"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	pb "github.com/jobinjosem/jjcustomvoto/emojivoto-web/gen/proto"
 	// "github.com/jobinjosem/jjcustomvoto/pkg/api"
 	// _ "github.com/jobinjosem/jjcustomvoto/pkg/api/docs"
 	// "github.com/swaggo/swag"
-	"go.opencensus.io/plugin/ochttp"
+	// "go.opencensus.io/plugin/ochttp"
 	// "github.com/jobinjosem/jjcustomvoto/pkg/grpc"
 	// "github.com/jobinjosem/jjcustomvoto/pkg/signals"
 	// "github.com/jobinjosem/jjcustomvoto/pkg/version"
 	// httpSwagger "github.com/swaggo/http-swagger"
 	// "github.com/gorilla/mux"
-	"go.uber.org/zap"
 	"github.com/swaggo/swag"
+	"go.uber.org/zap"
 	// httpSwagger "github.com/swaggo/http-swagger"
 )
+
+// @title Podinfo API
+// @version 2.0
+// @description Go microservice template for Kubernetes.
+
+// @contact.name Source Code
+// @contact.url https://github.com/stefanprodan/podinfo
+
+// @license.name MIT License
+// @license.url https://github.com/stefanprodan/podinfo/blob/master/LICENSE
+
+// @host localhost:8080
+// @BasePath /
+// @schemes http https
 
 type Server struct {
 	emojiServiceClient  pb.EmojiServiceClient
@@ -421,60 +440,200 @@ func WriteError(err error, w http.ResponseWriter, r *http.Request, status int, d
 	json.NewEncoder(w).Encode(errorMessage)
 }
 
-func handle(path string, h func(w http.ResponseWriter, r *http.Request)) {
-	http.Handle(path, &ochttp.Handler{
-		Handler: http.HandlerFunc(h),
-	})
-}
+// func handle(path string, h func(w http.ResponseWriter, r *http.Request)) {
+// 	http.Handle(path, &ochttp.Handler{
+// 		Handler: http.HandlerFunc(h),
+// 	})
+// }
 
-func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClient pb.EmojiServiceClient, votingClient pb.VotingServiceClient) {
-	rand.Seed(time.Now().UnixNano())
-	messages := []string{
-		"Hello, world!",
-		"Welcome to the jungle!",
-	}
-	motd := messages[rand.Intn(len(messages))]
-	// motd := os.Getenv("MESSAGE_OF_THE_DAY")
-	ctx := context.Background()
-	Server := &Server{
-		emojiServiceClient:  emojiServiceClient,
-		votingServiceClient: votingClient,
-		indexBundle:         indexBundle,
-		webpackDevServer:    webpackDevServer,
-		messageOfTheDay:     motd,
-	}
-	Api := &api.Api{}
-	Api.InitTracer(ctx)
 
-	log.Printf("Starting web server on WEB_PORT=[%s] and MESSAGE_OF_THE_DAY=[%s]", webPort, motd)
-	handle("/", Server.indexHandler)
-	handle("/leaderboard", Server.indexHandler)
-	handle("/js", Server.jsHandler)
-	handle("/img/favicon.ico", Server.faviconHandler)
-	handle("/api/list", Server.listEmojiHandler)
-	handle("/api/vote", Server.voteEmojiHandler)
-	handle("/api/leaderboard", Server.leaderboardHandler)
-	handle("/api/env", Api.EnvHandler)
-	handle("/api/headers", Api.EchoHeadersHandler)
-	handle("/api/info", Api.VersionHandler)
-	handle("/api/token", Api.TokenGenerateHandler)
-	handle("/api/token/validate", Api.TokenValidateHandler)
-	handle("/api/echo", Api.EchoHandler)
-	// Api.Router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-	//     httpSwagger.URL("/swagger/doc.json"),
-	// ))
-	handle("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
-	    doc, err := swag.ReadDoc()
-	    if err != nil {
-	        Api.Logger.Error("swagger error", zap.Error(err), zap.String("path", "/swagger.json"))
-	    }
-	    w.Write([]byte(doc))
-	})
-	// TODO: make static assets dir configurable
-	http.Handle("/dist/", http.StripPrefix("/dist/", http.FileServer(http.Dir("dist"))))
+// func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClient pb.EmojiServiceClient, votingClient pb.VotingServiceClient) {
+// 	rand.Seed(time.Now().UnixNano())
+// 	messages := []string{
+// 		"Hello, world!",
+// 		"Welcome to the jungle!",
+// 	}
+// 	motd := messages[rand.Intn(len(messages))]
+// 	// motd := os.Getenv("MESSAGE_OF_THE_DAY")
+// 	ctx := context.Background()
+// 	Server := &Server{
+// 		emojiServiceClient:  emojiServiceClient,
+// 		votingServiceClient: votingClient,
+// 		indexBundle:         indexBundle,
+// 		webpackDevServer:    webpackDevServer,
+// 		messageOfTheDay:     motd,
+// 	}
+// 	Api := &api.Api{
+// 	}
+// 	Api.InitTracer(ctx)
 
-	err := http.ListenAndServe(fmt.Sprintf(":%s", webPort), nil)
-	if err != nil {
-		panic(err)
-	}
+// 	log.Printf("Starting web server on WEB_PORT=[%s] and MESSAGE_OF_THE_DAY=[%s]", webPort, motd)
+// 	handle("/", Server.indexHandler)
+// 	handle("/leaderboard", Server.indexHandler)
+// 	handle("/js", Server.jsHandler)
+// 	handle("/img/favicon.ico", Server.faviconHandler)
+// 	handle("/api/list", Server.listEmojiHandler)
+// 	handle("/api/vote", Server.voteEmojiHandler)
+// 	handle("/api/leaderboard", Server.leaderboardHandler)
+// 	handle("/api/env", Api.EnvHandler)
+// 	handle("/api/headers", Api.EchoHeadersHandler)
+// 	handle("/api/info", Api.VersionHandler)
+// 	handle("/api/token", Api.TokenGenerateHandler)
+// 	handle("/api/token/validate", Api.TokenValidateHandler)
+// 	handle("/api/echo", Api.EchoHandler)
+// 	handle("/api/ws/echo", Api.EchoWsHandler)
+// 	handle("/api/delay/{wait:[0-9]+}", Api.DelayHandler)
+// 	handle("/api/status/{code:[0-9]+}", Api.StatusHandler)
+// 	// Api.Router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+// 	//     httpSwagger.URL("/swagger/doc.json"),
+// 	// ))
+// 	handle("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+// 	    doc, err := swag.ReadDoc()
+// 	    if err != nil {
+// 	        Api.Logger.Error("swagger error", zap.Error(err), zap.String("path", "/swagger.json"))
+// 	    }
+// 	    w.Write([]byte(doc))
+// 	})
+// 	// TODO: make static assets dir configurable
+// 	http.Handle("/dist/", http.StripPrefix("/dist/", http.FileServer(http.Dir("dist"))))
+
+// 	err := http.ListenAndServe(fmt.Sprintf(":%s", webPort), nil)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// }
+
+
+// func handle(r *mux.Router, path string, h func(w http.ResponseWriter, r *http.Request)) {
+// 	r.HandleFunc(path, h)
+// }
+
+// func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClient pb.EmojiServiceClient, votingClient pb.VotingServiceClient) {
+// 	rand.Seed(time.Now().UnixNano())
+// 	messages := []string{
+// 		"Hello, world!",
+// 		"Welcome to the jungle!",
+// 	}
+// 	motd := messages[rand.Intn(len(messages))]
+// 	// motd := os.Getenv("MESSAGE_OF_THE_DAY")
+// 	ctx := context.Background()
+// 	Server := &Server{
+// 		emojiServiceClient:  emojiServiceClient,
+// 		votingServiceClient: votingClient,
+// 		indexBundle:         indexBundle,
+// 		webpackDevServer:    webpackDevServer,
+// 		messageOfTheDay:     motd,
+// 	}
+// 	Api := &api.Api{}
+// 	Api.InitTracer(ctx)
+
+// 	log.Printf("Starting web server on WEB_PORT=[%s] and MESSAGE_OF_THE_DAY=[%s]", webPort, motd)
+	
+// 	r := mux.NewRouter()
+
+// 	handle(r, "/", Server.indexHandler)
+// 	handle(r, "/leaderboard", Server.indexHandler)
+// 	handle(r, "/js", Server.jsHandler)
+// 	handle(r, "/img/favicon.ico", Server.faviconHandler)
+// 	handle(r, "/api/list", Server.listEmojiHandler)
+// 	handle(r, "/api/vote", Server.voteEmojiHandler)
+// 	handle(r, "/api/leaderboard", Server.leaderboardHandler)
+// 	handle(r, "/api/env", Api.EnvHandler)
+// 	handle(r, "/api/headers", Api.EchoHeadersHandler)
+// 	handle(r, "/api/info", Api.VersionHandler)
+// 	handle(r, "/api/token", Api.TokenGenerateHandler)
+// 	handle(r, "/api/token/validate", Api.TokenValidateHandler)
+// 	handle(r, "/api/echo", Api.EchoHandler)
+// 	handle(r, "/api/ws/echo", Api.EchoWsHandler)
+// 	handle(r, "/api/delay/{wait:[0-9]+}", Api.DelayHandler)
+// 	handle(r, "/api/status/{code:[0-9]+}", Api.StatusHandler)
+// 	handle(r, "/panic", Api.PanicHandler)
+	
+// 	// Register the OpenCensus HTTP handler with the router.
+// 	http.Handle("/", &ochttp.Handler{Handler: r})
+
+// 	handle(r, "/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+// 	    doc, err := swag.ReadDoc()
+// 	    if err != nil {
+// 	        Api.Logger.Error("swagger error", zap.Error(err), zap.String("path", "/swagger.json"))
+// 	    }
+// 	    w.Write([]byte(doc))
+// 	})
+
+// 	// TODO: make static assets dir configurable
+// 	http.Handle("/dist/", http.StripPrefix("/dist/", http.FileServer(http.Dir("dist"))))
+
+// 	err := http.ListenAndServe(fmt.Sprintf(":%s", webPort), nil)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// }
+
+func StartServer(webPort, webpackDevServer, indexBundle string, emojiServiceClient pb.EmojiServiceClient, votingClient pb.VotingServiceClient, srvCfg *api.Config) {
+    rand.Seed(time.Now().UnixNano())
+    messages := []string{
+        "Hello, world!",
+        "Welcome to the jungle!",
+    }
+    motd := messages[rand.Intn(len(messages))]
+    // motd := os.Getenv("MESSAGE_OF_THE_DAY")
+    ctx := context.Background()
+    Server := &Server{
+        emojiServiceClient:  emojiServiceClient,
+        votingServiceClient: votingClient,
+        indexBundle:         indexBundle,
+        webpackDevServer:    webpackDevServer,
+        messageOfTheDay:     motd,
+    }
+    Api := &api.Api{
+		Config: srvCfg,
+    }
+    Api.InitTracer(ctx)
+
+    log.Printf("Starting web server on WEB_PORT=[%s] and MESSAGE_OF_THE_DAY=[%s]", webPort, motd)
+
+    r := mux.NewRouter()
+
+    r.HandleFunc("/", Server.indexHandler)
+    r.HandleFunc("/leaderboard", Server.indexHandler)
+    r.HandleFunc("/js", Server.jsHandler)
+    r.HandleFunc("/img/favicon.ico", Server.faviconHandler)
+    r.HandleFunc("/api/list", Server.listEmojiHandler)
+    r.HandleFunc("/api/vote", Server.voteEmojiHandler)
+    r.HandleFunc("/api/leaderboard", Server.leaderboardHandler)
+    r.HandleFunc("/api/env", Api.EnvHandler)
+	r.HandleFunc("/api/info", Api.InfoHandler)
+    r.HandleFunc("/api/headers", Api.EchoHeadersHandler)
+    r.HandleFunc("/api/version", Api.VersionHandler)
+    r.HandleFunc("/api/token", Api.TokenGenerateHandler)
+    r.HandleFunc("/api/token/validate", Api.TokenValidateHandler)
+    r.HandleFunc("/api/echo", Api.EchoHandler)
+    r.HandleFunc("/api/ws/echo", Api.EchoWsHandler)
+    r.HandleFunc("/api/delay/{wait:[0-9]+}", Api.DelayHandler)
+    r.HandleFunc("/api/status/{code:[0-9]+}", Api.StatusHandler)
+	r.HandleFunc("/panic", Api.PanicHandler).Methods("GET")
+	r.HandleFunc("/healthz", Api.HealthzHandler).Methods("GET")
+	r.HandleFunc("/readyz", Api.ReadyzHandler).Methods("GET")
+	r.HandleFunc("/readyz/enable", Api.EnableReadyHandler).Methods("POST")
+	r.HandleFunc("/readyz/disable", Api.DisableReadyHandler).Methods("POST")
+	r.HandleFunc("/configs", Api.ConfigReadHandler)
+	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	))
+    r.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+        doc, err := swag.ReadDoc()
+        if err != nil {
+            Api.Logger.Error("swagger error", zap.Error(err), zap.String("path", "/swagger.json"))
+        }
+        w.Write([]byte(doc))
+    })
+
+    // TODO: make static assets dir configurable
+    http.Handle("/dist/", http.StripPrefix("/dist/", http.FileServer(http.Dir("dist"))))
+    http.Handle("/", r)
+
+    err := http.ListenAndServe(fmt.Sprintf(":%s", webPort), nil)
+    if err != nil {
+        panic(err)
+    }
 }

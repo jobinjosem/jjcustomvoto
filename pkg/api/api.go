@@ -1,6 +1,5 @@
 package api
 
-
 import (
 	"net/http"
 	_ "net/http/pprof"
@@ -11,7 +10,13 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
+	"github.com/jobinjosem/jjcustomvoto/pkg/fscache"
+)
 
+var (
+	healthy int32
+	ready   int32
+	watcher *fscache.Watcher
 )
 
 type Config struct {
@@ -46,9 +51,19 @@ type Config struct {
 type Api struct {
 	Router         *mux.Router
 	Logger         *zap.Logger
-	pool           *redis.Pool
+	Pool           *redis.Pool
 	Config         *Config
-	handler        http.Handler
-	tracer         trace.Tracer
-	tracerProvider *sdktrace.TracerProvider
+	Handler        http.Handler
+	Tracer         trace.Tracer
+	TracerProvider *sdktrace.TracerProvider
+}
+
+
+func NewServer(config *Config) (*Api, error) {
+	srv := &Api{
+		Router: mux.NewRouter(),
+		Config: config,
+	}
+
+	return srv, nil
 }

@@ -1,4 +1,4 @@
-IMAGE_TAG ?= v1
+IMAGE_TAG ?= v2
 
 .PHONY: package protoc test
 
