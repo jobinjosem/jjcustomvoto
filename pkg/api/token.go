@@ -74,8 +74,8 @@ func (a *Api) TokenGenerateHandler(w http.ResponseWriter, r *http.Request) {
 // @Router /token/validate [post]
 // @Success 200 {object} api.TokenValidationResponse
 // @Failure 401 {string} string "Unauthorized"
-// Get: JWT=$(curl -s -d 'test' localhost:9898/token | jq -r .token)
-// Post: curl -H "Authorization: Bearer ${JWT}" localhost:9898/token/validate
+// Get: JWT=$(curl -s -d 'test' localhost:8080/token | jq -r .token)
+// Post: curl -H "Authorization: Bearer ${JWT}" localhost:8080/token/validate
 func (a *Api) TokenValidateHandler(w http.ResponseWriter, r *http.Request) {
 	_, span := a.Tracer.Start(r.Context(), "tokenValidateHandler")
 	defer span.End()
